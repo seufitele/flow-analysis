@@ -41,7 +41,13 @@ public class ClassAnalysis
 	@Override
 	public String toString()
 	{
+		
+		if (getAdded().isEmpty() && getRemoved().isEmpty())
+		{
+			return name;
+		}
+		
 //		return "ClassAnalysis [name=" + name + ", unmodified=" + unmodified + ", added=" + added + ", removed=" + removed + "]";
-		return "ClassAnalysis [name=" + name + ", added=" + added + ", removed=" + removed + "]";
+		return "[" + name + ", added=" + added + ", removed=" + removed + "]";
 	}
 }

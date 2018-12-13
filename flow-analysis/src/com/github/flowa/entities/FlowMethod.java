@@ -2,6 +2,8 @@ package com.github.flowa.entities;
 
 import java.util.List;
 
+import com.github.flowa.main.Util;
+
 /**
  * This class represents a FlowMethod
  * 
@@ -55,8 +57,8 @@ public class FlowMethod
 	public String toString()
 	{
 //		return "[" + name + ":" + parameterTypes + "]";
-		return "FlowMethod [name=" + name + ", parameterTypes=" + parameterTypes + ", isPublic=" + isPublic + ", returnType=" + returnType
-				+ "]";
+//		return (isPublic ? "public " : "") + returnType + " " + name + "(" + Util.toString(parameterTypes) + ")";
+		return returnType + " " + name + "(" + Util.toString(parameterTypes) + ")";
 	}
 
 	@Override

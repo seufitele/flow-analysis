@@ -26,6 +26,9 @@ public class Main
 	{
 		final String ultimoArquivo = "D:\\apache-maven-3.0.5\\maven_repo\\com\\github\\detentor\\codexCollections\\0.0.21\\codexCollections-0.0.21.jar";
 		final String penultimoArquivo = "D:\\apache-maven-3.0.5\\maven_repo\\com\\github\\detentor\\codexCollections\\0.0.20\\codexCollections-0.0.20.jar";
+		
+		//final String ultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.1.jar";
+		//final String penultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.2-SNAPSHOT.jar";
 
 		final FlowLibrary ultimaVersao = loadData(ultimoArquivo);
 		final FlowLibrary penultimaVersao = loadData(penultimoArquivo);

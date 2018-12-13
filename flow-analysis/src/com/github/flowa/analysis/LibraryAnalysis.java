@@ -67,7 +67,7 @@ public class LibraryAnalysis
 	public String toString()
 	{
 		return "LibraryAnalysis [name=" + name + ", previousVersion=" + previousVersion + ", currentVersion=" + currentVersion
-				+ ", \nunmodified=" + unmodified + ", \nnadded=" + added + "\n, removed=" + removed + ", \nmodified=" + modified + "]";
+				+ ", \nunmodified=" + unmodified + ", \nadded=" + added + "\n, removed=" + removed + ", \nmodified=" + modified + "]";
 	}
 	
 }
