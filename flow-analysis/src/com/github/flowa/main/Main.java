@@ -3,9 +3,13 @@ package com.github.flowa.main;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -14,11 +18,17 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+
 import com.github.flowa.analysis.ClassAnalysis;
 import com.github.flowa.analysis.LibraryAnalysis;
 import com.github.flowa.entities.FlowClass;
 import com.github.flowa.entities.FlowLibrary;
 import com.github.flowa.entities.FlowMethod;
+import com.sun.org.apache.xpath.internal.compiler.OpCodes;
 
 public class Main
 {
@@ -30,13 +40,18 @@ public class Main
 		//final String ultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.1.jar";
 		//final String penultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.2-SNAPSHOT.jar";
 
-		final FlowLibrary ultimaVersao = loadData(ultimoArquivo);
-		final FlowLibrary penultimaVersao = loadData(penultimoArquivo);
+//		final String ultimoArquivo = "C:\\Users\\vinicius\\Downloads\\gcs-servicotoken-1.0.0.jar";
+//		final String penultimoArquivo = "C:\\Users\\vinicius\\Downloads\\gcs-servicotoken-1.0.0-SNAPSHOT.jar";
+		
+		System.out.println("starting...");
+		
+		final FlowLibrary ultimaVersao = loadDataNoReflection(ultimoArquivo);
+		final FlowLibrary penultimaVersao = loadDataNoReflection(penultimoArquivo);
 
 		// System.out.println(ultimaVersao);
 		// System.out.println("\n\n\n");
 		// System.out.println(penultimaVersao);
-
+		
 		System.out.println(analyse(penultimaVersao, ultimaVersao));
 
 		// listar:
@@ -162,6 +177,41 @@ public class Main
 				else if (je.getName().endsWith(".class") && !je.getName().contains("$")) // descarta as classes internas
 				{
 					final String className = je.getName().substring(0, je.getName().length() - 6).replace('/', '.');
+					
+					//parte teste
+					try (InputStream iStream = cl.getResourceAsStream(je.getName()))
+					{
+						byte[] data = new byte[iStream.available()];
+						iStream.read(data);
+						
+						ClassReader cr = new ClassReader(data);
+						
+						ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM7) 
+						{
+							
+							@Override
+							public void visit(int version, int access, String name, String signature, String superName,
+									String[] interfaces) {
+								
+								System.out.println("nome da classe " + name);
+								super.visit(version, access, name, signature, superName, interfaces);
+							}
+
+							@Override
+							public MethodVisitor visitMethod(int access, String name, String descriptor,
+									String signature, String[] exceptions) 
+							{
+								System.out.println("nome " + name + "/" + signature);
+								return super.visitMethod(access, name, descriptor, signature, exceptions);
+							}
+						};
+						
+						cr.accept(classVisitor,  0);
+						
+						System.out.println(cr);
+					}
+					//
+					
 
 					final Class<?> curClass = cl.loadClass(className);
 					final FlowClass flowClass = new FlowClass(curClass.getName());
@@ -179,6 +229,115 @@ public class Main
 					}
 
 					flowLibrary.getFlowClasses().add(flowClass);
+				}
+			}
+		}
+		catch (final Exception e)
+		{
+			throw new RuntimeException(e);
+		}
+
+		return flowLibrary;
+	}
+	
+	
+	/**
+	 * Load all classes from a jar file. <br/>
+	 * Nao carrega as classes internas e metodos nao publicos
+	 * 
+	 * @param filename
+	 * @return
+	 */
+	public static FlowLibrary loadDataNoReflection(final String filename)
+	{
+		final FlowLibrary flowLibrary = new FlowLibrary("unversioned", "unamed");
+
+		try (final JarFile jarFile = new JarFile(filename))
+		{
+			final Enumeration<JarEntry> e = jarFile.entries();
+
+			final URL[] urls = { new URL("jar:file:" + filename + "!/") };
+			final URLClassLoader cl = URLClassLoader.newInstance(urls);
+
+			while (e.hasMoreElements())
+			{
+				final JarEntry je = e.nextElement();
+
+				if (je.getName().contains("pom.properties"))
+				{
+					final Properties prop = new Properties();
+					try (InputStream input = cl.getResourceAsStream(je.getName()))
+					{
+						prop.load(input);
+						flowLibrary.setName(prop.getProperty("groupId") + "/" + prop.getProperty("artifactId"));
+						flowLibrary.setVersion(prop.getProperty("version"));
+					}
+				}
+				else if (je.getName().endsWith(".class") && !je.getName().contains("$")) // descarta as classes internas
+				{
+					final String className = je.getName().substring(0, je.getName().length() - 6).replace('/', '.');
+					
+					//parte teste
+					try (InputStream iStream = cl.getResourceAsStream(je.getName()))
+					{
+						byte[] data = new byte[iStream.available()];
+						iStream.read(data);
+						
+						ClassReader cr = new ClassReader(data);
+						
+						FlowClass flowClass = new FlowClass(className);
+						
+						ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM6) 
+						{
+							
+							@Override
+							public void visit(int version, int access, String name, String signature, String superName,
+									String[] interfaces) {
+								
+								super.visit(version, access, name, signature, superName, interfaces);
+							}
+
+							@Override
+							public MethodVisitor visitMethod(int access, String name, String descriptor,
+									String signature, String[] exceptions) 
+							{
+								if (! name.startsWith("<"))
+								{
+									System.out.println("nome " + name + "/" + signature + "/" + descriptor);
+									
+									final boolean isPublic = (access & Opcodes.ACC_PUBLIC) == Opcodes.ACC_PUBLIC;
+									flowClass.getMethods().add(new FlowMethod(name, Arrays.asList(signature), isPublic, ""));
+								}
+								
+								return super.visitMethod(access, name, descriptor, signature, exceptions);
+							}
+						};
+						
+						cr.accept(classVisitor,  0);
+						flowLibrary.getFlowClasses().add(flowClass);
+					}
+					catch (IllegalArgumentException iae)
+					{
+						iae.printStackTrace();
+					}
+					//
+					
+//					final Class<?> curClass = cl.loadClass(className);
+//					final FlowClass flowClass = new FlowClass(curClass.getName());
+//
+//					for (final Method curMethod : curClass.getDeclaredMethods())
+//					{
+//						final boolean isPublic = (curMethod.getModifiers() & Modifier.PUBLIC) == Modifier.PUBLIC;
+//						final List<String> parameters = getParameters(curMethod);
+//
+//						if (isPublic)
+//						{
+//							flowClass.getMethods()
+//									.add(new FlowMethod(curMethod.getName(), parameters, isPublic, curMethod.getReturnType().getName()));
+//						}
+//					}
+
+					
 				}
 			}
 		}
