@@ -1,18 +1,10 @@
 package com.github.flowa.main;
 
 import java.io.InputStream;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -23,401 +15,233 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import com.github.detentor.codex.monads.Option;
 import com.github.flowa.analysis.ClassAnalysis;
 import com.github.flowa.analysis.LibraryAnalysis;
 import com.github.flowa.entities.FlowClass;
 import com.github.flowa.entities.FlowLibrary;
 import com.github.flowa.entities.FlowMethod;
-import com.sun.org.apache.xpath.internal.compiler.OpCodes;
 
 public class Main
 {
-	public static void main(final String[] args)
-	{
-		final String ultimoArquivo = "D:\\apache-maven-3.0.5\\maven_repo\\com\\github\\detentor\\codexCollections\\0.0.21\\codexCollections-0.0.21.jar";
-		final String penultimoArquivo = "D:\\apache-maven-3.0.5\\maven_repo\\com\\github\\detentor\\codexCollections\\0.0.20\\codexCollections-0.0.20.jar";
-		
-		//final String ultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.1.jar";
-		//final String penultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.2-SNAPSHOT.jar";
+    public static void main(final String[] args)
+    {
+        final String ultimoArquivo = "D:\\apache-maven-3.0.5\\maven_repo\\com\\github\\detentor\\codexCollections\\0.0.21\\codexCollections-0.0.21.jar";
+        final String penultimoArquivo = "D:\\apache-maven-3.0.5\\maven_repo\\com\\github\\detentor\\codexCollections\\0.0.20\\codexCollections-0.0.20.jar";
+        
+        // final String ultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.1.jar";
+        // final String penultimoArquivo = "C:\\Users\\vinicius\\Downloads\\atc-modelos-1.0.2-SNAPSHOT.jar";
 
-//		final String ultimoArquivo = "C:\\Users\\vinicius\\Downloads\\gcs-servicotoken-1.0.0.jar";
-//		final String penultimoArquivo = "C:\\Users\\vinicius\\Downloads\\gcs-servicotoken-1.0.0-SNAPSHOT.jar";
-		
-		System.out.println("starting...");
-		
-		final FlowLibrary ultimaVersao = loadDataNoReflection(ultimoArquivo);
-		final FlowLibrary penultimaVersao = loadDataNoReflection(penultimoArquivo);
+        // final String ultimoArquivo = "C:\\Users\\vinicius\\Downloads\\gcs-servicotoken-1.0.0.jar";
+        // final String penultimoArquivo = "C:\\Users\\vinicius\\Downloads\\gcs-servicotoken-1.0.0-SNAPSHOT.jar";
 
-		// System.out.println(ultimaVersao);
-		// System.out.println("\n\n\n");
-		// System.out.println(penultimaVersao);
-		
-		System.out.println(analyse(penultimaVersao, ultimaVersao));
+        System.out.println("starting...");
 
-		// listar:
-		// 1 - as novas classes
-		// 2 - os novos metodos
+        final FlowLibrary ultimaVersao = loadData(ultimoArquivo);
+        final FlowLibrary penultimaVersao = loadData(penultimoArquivo);
 
-		// importantes:
+        // System.out.println(ultimaVersao);
+        // System.out.println("\n\n\n");
+        // System.out.println(penultimaVersao);
 
-		// 1 - quais metodos mudaram o contrato (os parametros ou a saida)
+        System.out.println(analyse(penultimaVersao, ultimaVersao));
 
-		// final List<Class<?>> classes = loadClasses(arquivoAnalisar);
-		// final Map<Class<?>, Map<Method, Class<?>>> analysis = analyseClass(classes);
+        // listar:
+        // 1 - as novas classes
+        // 2 - os novos metodos
 
-	}
+        // importantes:
 
-	private static LibraryAnalysis analyse(final FlowLibrary previous, final FlowLibrary current)
-	{
-		if (!previous.getName().equals(current.getName()))
-		{
-			System.out.println("As bibliotecas sao diferentes");
-		}
+        // 1 - quais metodos mudaram o contrato (os parametros ou a saida)
 
-		final LibraryAnalysis libraryAnalysis = new LibraryAnalysis(previous.getName(), previous.getVersion(), current.getVersion());
+        // final List<Class<?>> classes = loadClasses(arquivoAnalisar);
+        // final Map<Class<?>, Map<Method, Class<?>>> analysis = analyseClass(classes);
 
-		for (final FlowClass prevClass : previous.getFlowClasses())
-		{
-			final int theIndex = current.getFlowClasses().indexOf(prevClass);
+    }
 
-			final ClassAnalysis classAnalysis = new ClassAnalysis(prevClass.getName());
+    private static LibraryAnalysis analyse(final FlowLibrary previous, final FlowLibrary current)
+    {
+        if (!previous.getName().equals(current.getName()))
+        {
+            System.out.println("As bibliotecas sao diferentes");
+        }
 
-			if (theIndex > -1)
-			{
-				final FlowClass currentClass = current.getFlowClasses().get(theIndex);
+        final LibraryAnalysis libraryAnalysis = new LibraryAnalysis(previous.getName(), previous.getVersion(), current.getVersion());
 
-				for (final FlowMethod flowMethod : prevClass.getMethods())
-				{
-					// Se a classe atual possui o metodo, ele nao foi modificado
-					if (currentClass.getMethods().contains(flowMethod))
-					{
-						classAnalysis.getUnmodified().add(flowMethod);
-					}
-					else
-					{
-						// Se nao possui mais o metodo, ele foi removido
-						classAnalysis.getRemoved().add(flowMethod);
-					}
-				}
+        for (final FlowClass prevClass : previous.getFlowClasses())
+        {
+            final int theIndex = current.getFlowClasses().indexOf(prevClass);
 
-				// no final, identifica os metodos da atual que nao existiam na anterior
-				for (final FlowMethod curMethod : currentClass.getMethods())
-				{
-					if (!classAnalysis.getUnmodified().contains(curMethod))
-					{
-						classAnalysis.getAdded().add(curMethod);
-					}
-				}
-				
-				
-				Set<FlowMethod> firstSet = new HashSet<>(prevClass.getMethods());
-				Set<FlowMethod> secondSet = new HashSet<>(currentClass.getMethods());
-				
-				if (firstSet.equals(secondSet))
-				{
-					libraryAnalysis.getUnmodified().add(classAnalysis);
-				}
-				else
-				{
-					libraryAnalysis.getModified().add(classAnalysis);
-				}
-			}
-			else
-			{
-				libraryAnalysis.getRemoved().add(classAnalysis);
-			}
-		}
+            final ClassAnalysis classAnalysis = new ClassAnalysis(prevClass.getName());
 
-		for (final FlowClass curClass : current.getFlowClasses())
-		{
-			if (!libraryAnalysis.hasClass(curClass.getName()))
-			{
-				// Se a classe nao existe, cria a analise com todas as informacoes
-				final ClassAnalysis curAnalysis = new ClassAnalysis(curClass.getName());
-				curAnalysis.getAdded().addAll(curClass.getMethods());
-				libraryAnalysis.getAdded().add(curAnalysis);
-			}
-		}
-		
-		return libraryAnalysis;
-	}
+            if (theIndex > -1)
+            {
+                final FlowClass currentClass = current.getFlowClasses().get(theIndex);
 
-	/**
-	 * Load all classes from a jar file. <br/>
-	 * Nao carrega as classes internas e metodos nao publicos
-	 * 
-	 * @param filename
-	 * @return
-	 */
-	public static FlowLibrary loadData(final String filename)
-	{
-		final FlowLibrary flowLibrary = new FlowLibrary("unversioned", "unamed");
+                for (final FlowMethod flowMethod : prevClass.getMethods())
+                {
+                    // Se a classe atual possui o metodo, ele nao foi modificado
+                    if (currentClass.getMethods().contains(flowMethod))
+                    {
+                        classAnalysis.getUnmodified().add(flowMethod);
+                    }
+                    else
+                    {
+                        // Se nao possui mais o metodo, ele foi removido
+                        classAnalysis.getRemoved().add(flowMethod);
+                    }
+                }
 
-		try (final JarFile jarFile = new JarFile(filename))
-		{
-			final Enumeration<JarEntry> e = jarFile.entries();
+                // no final, identifica os metodos da atual que nao existiam na anterior
+                for (final FlowMethod curMethod : currentClass.getMethods())
+                {
+                    if (!classAnalysis.getUnmodified().contains(curMethod))
+                    {
+                        classAnalysis.getAdded().add(curMethod);
+                    }
+                }
 
-			final URL[] urls = { new URL("jar:file:" + filename + "!/") };
-			final URLClassLoader cl = URLClassLoader.newInstance(urls);
+                final Set<FlowMethod> firstSet = new HashSet<>(prevClass.getMethods());
+                final Set<FlowMethod> secondSet = new HashSet<>(currentClass.getMethods());
 
-			while (e.hasMoreElements())
-			{
-				final JarEntry je = e.nextElement();
+                if (firstSet.equals(secondSet))
+                {
+                    libraryAnalysis.getUnmodified().add(classAnalysis);
+                }
+                else
+                {
+                    libraryAnalysis.getModified().add(classAnalysis);
+                }
+            }
+            else
+            {
+                libraryAnalysis.getRemoved().add(classAnalysis);
+            }
+        }
 
-				if (je.getName().contains("pom.properties"))
-				{
-					final Properties prop = new Properties();
-					try (InputStream input = cl.getResourceAsStream(je.getName()))
-					{
-						prop.load(input);
-						flowLibrary.setName(prop.getProperty("groupId") + "/" + prop.getProperty("artifactId"));
-						flowLibrary.setVersion(prop.getProperty("version"));
-					}
-				}
-				else if (je.getName().endsWith(".class") && !je.getName().contains("$")) // descarta as classes internas
-				{
-					final String className = je.getName().substring(0, je.getName().length() - 6).replace('/', '.');
-					
-					//parte teste
-					try (InputStream iStream = cl.getResourceAsStream(je.getName()))
-					{
-						byte[] data = new byte[iStream.available()];
-						iStream.read(data);
-						
-						ClassReader cr = new ClassReader(data);
-						
-						ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM7) 
-						{
-							
-							@Override
-							public void visit(int version, int access, String name, String signature, String superName,
-									String[] interfaces) {
-								
-								System.out.println("nome da classe " + name);
-								super.visit(version, access, name, signature, superName, interfaces);
-							}
+        for (final FlowClass curClass : current.getFlowClasses())
+        {
+            if (!libraryAnalysis.hasClass(curClass.getName()))
+            {
+                // Se a classe nao existe, cria a analise com todas as informacoes
+                final ClassAnalysis curAnalysis = new ClassAnalysis(curClass.getName());
+                curAnalysis.getAdded().addAll(curClass.getMethods());
+                libraryAnalysis.getAdded().add(curAnalysis);
+            }
+        }
 
-							@Override
-							public MethodVisitor visitMethod(int access, String name, String descriptor,
-									String signature, String[] exceptions) 
-							{
-								System.out.println("nome " + name + "/" + signature);
-								return super.visitMethod(access, name, descriptor, signature, exceptions);
-							}
-						};
-						
-						cr.accept(classVisitor,  0);
-						
-						System.out.println(cr);
-					}
-					//
-					
+        return libraryAnalysis;
+    }
 
-					final Class<?> curClass = cl.loadClass(className);
-					final FlowClass flowClass = new FlowClass(curClass.getName());
+    /**
+     * Load all classes from a jar file. <br/>
+     * Nao carrega as classes internas e metodos nao publicos
+     * 
+     * @param filename
+     * @return
+     */
+    public static FlowLibrary loadData(final String filename)
+    {
+        final FlowLibrary flowLibrary = new FlowLibrary("unversioned", "unamed");
 
-					for (final Method curMethod : curClass.getDeclaredMethods())
-					{
-						final boolean isPublic = (curMethod.getModifiers() & Modifier.PUBLIC) == Modifier.PUBLIC;
-						final List<String> parameters = getParameters(curMethod);
+        try (final JarFile jarFile = new JarFile(filename))
+        {
+            final Enumeration<JarEntry> e = jarFile.entries();
 
-						if (isPublic)
-						{
-							flowClass.getMethods()
-									.add(new FlowMethod(curMethod.getName(), parameters, isPublic, curMethod.getReturnType().getName()));
-						}
-					}
+            final URL[] urls = { new URL("jar:file:" + filename + "!/") };
+            final URLClassLoader cl = URLClassLoader.newInstance(urls);
 
-					flowLibrary.getFlowClasses().add(flowClass);
-				}
-			}
-		}
-		catch (final Exception e)
-		{
-			throw new RuntimeException(e);
-		}
+            while (e.hasMoreElements())
+            {
+                final JarEntry je = e.nextElement();
 
-		return flowLibrary;
-	}
-	
-	
-	/**
-	 * Load all classes from a jar file. <br/>
-	 * Nao carrega as classes internas e metodos nao publicos
-	 * 
-	 * @param filename
-	 * @return
-	 */
-	public static FlowLibrary loadDataNoReflection(final String filename)
-	{
-		final FlowLibrary flowLibrary = new FlowLibrary("unversioned", "unamed");
+                if (je.getName().contains("pom.properties"))
+                {
+                    final Properties prop = new Properties();
+                    try (InputStream input = cl.getResourceAsStream(je.getName()))
+                    {
+                        prop.load(input);
+                        flowLibrary.setName(prop.getProperty("groupId") + "/" + prop.getProperty("artifactId"));
+                        flowLibrary.setVersion(prop.getProperty("version"));
+                    }
+                }
+                else if (je.getName().endsWith(".class") && !je.getName().contains("$")) // descarta as classes internas
+                {
+                    final String className = je.getName().substring(0, je.getName().length() - 6).replace('/', '.');
 
-		try (final JarFile jarFile = new JarFile(filename))
-		{
-			final Enumeration<JarEntry> e = jarFile.entries();
+                    // parte teste
+                    try (InputStream iStream = cl.getResourceAsStream(je.getName()))
+                    {
+                        final byte[] data = new byte[iStream.available()];
+                        iStream.read(data);
 
-			final URL[] urls = { new URL("jar:file:" + filename + "!/") };
-			final URLClassLoader cl = URLClassLoader.newInstance(urls);
+                        final ClassReader cr = new ClassReader(data);
 
-			while (e.hasMoreElements())
-			{
-				final JarEntry je = e.nextElement();
+                        final FlowClass flowClass = new FlowClass(className);
 
-				if (je.getName().contains("pom.properties"))
-				{
-					final Properties prop = new Properties();
-					try (InputStream input = cl.getResourceAsStream(je.getName()))
-					{
-						prop.load(input);
-						flowLibrary.setName(prop.getProperty("groupId") + "/" + prop.getProperty("artifactId"));
-						flowLibrary.setVersion(prop.getProperty("version"));
-					}
-				}
-				else if (je.getName().endsWith(".class") && !je.getName().contains("$")) // descarta as classes internas
-				{
-					final String className = je.getName().substring(0, je.getName().length() - 6).replace('/', '.');
-					
-					//parte teste
-					try (InputStream iStream = cl.getResourceAsStream(je.getName()))
-					{
-						byte[] data = new byte[iStream.available()];
-						iStream.read(data);
-						
-						ClassReader cr = new ClassReader(data);
-						
-						FlowClass flowClass = new FlowClass(className);
-						
-						ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM6) 
-						{
-							
-							@Override
-							public void visit(int version, int access, String name, String signature, String superName,
-									String[] interfaces) {
-								
-								super.visit(version, access, name, signature, superName, interfaces);
-							}
+                        final ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM6)
+                        {
 
-							@Override
-							public MethodVisitor visitMethod(int access, String name, String descriptor,
-									String signature, String[] exceptions) 
-							{
-								if (! name.startsWith("<"))
-								{
-									System.out.println("nome " + name + "/" + signature + "/" + descriptor);
-									
-									final boolean isPublic = (access & Opcodes.ACC_PUBLIC) == Opcodes.ACC_PUBLIC;
-									flowClass.getMethods().add(new FlowMethod(name, Arrays.asList(signature), isPublic, ""));
-								}
-								
-								return super.visitMethod(access, name, descriptor, signature, exceptions);
-							}
-						};
-						
-						cr.accept(classVisitor,  0);
-						flowLibrary.getFlowClasses().add(flowClass);
-					}
-					catch (IllegalArgumentException iae)
-					{
-						iae.printStackTrace();
-					}
-					//
-					
-//					final Class<?> curClass = cl.loadClass(className);
-//					final FlowClass flowClass = new FlowClass(curClass.getName());
-//
-//					for (final Method curMethod : curClass.getDeclaredMethods())
-//					{
-//						final boolean isPublic = (curMethod.getModifiers() & Modifier.PUBLIC) == Modifier.PUBLIC;
-//						final List<String> parameters = getParameters(curMethod);
-//
-//						if (isPublic)
-//						{
-//							flowClass.getMethods()
-//									.add(new FlowMethod(curMethod.getName(), parameters, isPublic, curMethod.getReturnType().getName()));
-//						}
-//					}
+                            @Override
+                            public void visit(final int version, final int access, final String name, final String signature,
+                                    final String superName,
+                                    final String[] interfaces)
+                            {
 
-					
-				}
-			}
-		}
-		catch (final Exception e)
-		{
-			throw new RuntimeException(e);
-		}
+                                super.visit(version, access, name, signature, superName, interfaces);
+                            }
 
-		return flowLibrary;
-	}
+                            @Override
+                            public MethodVisitor visitMethod(final int access, final String name, final String descriptor,
+                                    final String signature, final String[] exceptions)
+                            {
+                                if (!name.startsWith("<"))
+                                {
+                                    System.out.println("nome " + name + "/" + signature + "/" + descriptor);
 
-	// VERSAO ORIGINAL, ANALISA OS METODOS PUBLICOS E PRIVADOS, COMO TAMBEM AS CLASSES INTERNAS
-	// /**
-	// * Load all classes from a jar file
-	// *
-	// * @param filename
-	// * @return
-	// */
-	// public static FlowLibrary loadData(final String filename)
-	// {
-	// final FlowLibrary flowLibrary = new FlowLibrary("unversioned", "unamed");
-	//
-	// try (final JarFile jarFile = new JarFile(filename))
-	// {
-	// final Enumeration<JarEntry> e = jarFile.entries();
-	//
-	// final URL[] urls = { new URL("jar:file:" + filename + "!/") };
-	// final URLClassLoader cl = URLClassLoader.newInstance(urls);
-	//
-	// while (e.hasMoreElements())
-	// {
-	// final JarEntry je = e.nextElement();
-	//
-	// if (je.getName().contains("pom.properties"))
-	// {
-	// final Properties prop = new Properties();
-	// try (InputStream input = cl.getResourceAsStream(je.getName()))
-	// {
-	// prop.load(input);
-	// flowLibrary.setName(prop.getProperty("groupId") + "/" + prop.getProperty("artifactId"));
-	// flowLibrary.setVersion(prop.getProperty("version"));
-	// }
-	// }
-	// else if (je.getName().endsWith(".class"))
-	// {
-	// final String className = je.getName().substring(0, je.getName().length() - 6).replace('/', '.');
-	//
-	// final Class<?> curClass = cl.loadClass(className);
-	// final FlowClass flowClass = new FlowClass(curClass.getName());
-	//
-	// for (final Method curMethod : curClass.getDeclaredMethods())
-	// {
-	// final boolean isPublic = (curMethod.getModifiers() & Modifier.PUBLIC) == Modifier.PUBLIC;
-	// final List<String> parameters = getParameters(curMethod);
-	//
-	// flowClass.getMethods().add(new FlowMethod(curMethod.getName(), parameters, isPublic, curMethod.getReturnType().getName()));
-	// }
-	//
-	// flowLibrary.getFlowClasses().add(flowClass);
-	// }
-	// }
-	// }
-	// catch (final Exception e)
-	// {
-	// throw new RuntimeException(e);
-	// }
-	//
-	// return flowLibrary;
-	// }
+                                    final boolean isPublic = (access & Opcodes.ACC_PUBLIC) == Opcodes.ACC_PUBLIC;
+                                    flowClass.getMethods().add(new FlowMethod(name, descriptor, isPublic));
+                                }
 
-	private static List<String> getParameters(final Method method)
-	{
-		final List<String> params = new ArrayList<>();
+                                return super.visitMethod(access, name, descriptor, signature, exceptions);
+                            }
+                            
+                            
+                        };
 
-		for (final Class<?> curParam : method.getParameterTypes())
-		{
-			params.add(curParam.getName());
-		}
+                        cr.accept(classVisitor, 0);
+                        flowLibrary.getFlowClasses().add(flowClass);
+                    }
+                    catch (final IllegalArgumentException iae)
+                    {
+                        iae.printStackTrace();
+                    }
+                    //
 
-		return params;
-	}
+                    // final Class<?> curClass = cl.loadClass(className);
+                    // final FlowClass flowClass = new FlowClass(curClass.getName());
+                    //
+                    // for (final Method curMethod : curClass.getDeclaredMethods())
+                    // {
+                    // final boolean isPublic = (curMethod.getModifiers() & Modifier.PUBLIC) == Modifier.PUBLIC;
+                    // final List<String> parameters = getParameters(curMethod);
+                    //
+                    // if (isPublic)
+                    // {
+                    // flowClass.getMethods()
+                    // .add(new FlowMethod(curMethod.getName(), parameters, isPublic, curMethod.getReturnType().getName()));
+                    // }
+                    // }
+
+                }
+            }
+        }
+        catch (final Exception e)
+        {
+            throw new RuntimeException(e);
+        }
+
+        return flowLibrary;
+    }
 
 }

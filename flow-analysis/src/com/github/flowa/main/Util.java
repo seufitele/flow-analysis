@@ -5,6 +5,15 @@ import java.util.List;
 public class Util
 {
 	
+    /**
+     * Retorna a representacao amigavel de um method descriptor do asm
+     * @param methodDescriptor
+     * @return
+     */
+    public static String toString(final String methodDescriptor, final String methodName)
+    {
+        return methodName + " (" + methodDescriptor + ")";
+    }
 	
 	public static <A> String toString(final List<A> theList)
 	{

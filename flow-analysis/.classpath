@@ -16,5 +16,6 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="D:/apache-maven-3.0.5/maven_repo/com/github/detentor/codexCollections/0.0.21/codexCollections-0.0.21.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
